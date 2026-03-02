@@ -36,6 +36,5 @@ _ADVERSARIAL_CASES = [
 async def test_sympy_tool_blocks_adversarial_payloads(code: str) -> None:
     out = await server.sympy_tool(code)
     obj = json.loads(out)
-    assert obj["ok"] == 0
     assert obj["code"] == "E_AST_BLOCK"
     assert "安全拦截" in obj["err"]

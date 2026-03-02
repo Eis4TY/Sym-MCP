@@ -43,7 +43,8 @@ def parse_pool_error(message: str, hint_level: str = DEFAULT_HINT_LEVEL) -> Pars
 
 
 def parse_internal_error(message: str, hint_level: str = DEFAULT_HINT_LEVEL) -> ParsedError:
-    return ParsedError(code="E_INTERNAL", line=None, err=message, hint=build_hint("E_INTERNAL", hint_level=hint_level))
+    clean = (message or "").strip() or "internal error"
+    return ParsedError(code="E_INTERNAL", line=None, err=clean, hint=build_hint("E_INTERNAL", hint_level=hint_level))
 
 
 def build_hint(code: str, hint_level: str = DEFAULT_HINT_LEVEL) -> str:

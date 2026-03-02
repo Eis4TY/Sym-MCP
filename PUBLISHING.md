@@ -9,7 +9,9 @@
 pip index versions sym-mcp
 ```
 
-2. 更新版本号（`pyproject.toml` 的 `project.version`）。
+2. 版本号由 Git Tag 自动生成（`setuptools-scm`），不再手改 `pyproject.toml`。
+   - 例如：`v0.1.1` -> 发布版本 `0.1.1`
+   - 非 tag 构建会得到开发版号（仅用于本地/CI）
 
 3. 执行测试：
 ```bash
@@ -72,11 +74,11 @@ fastmcp call --command "sym-mcp" --target sympy --input-json '{"code":"import sy
    - Workflow: `pypi-publish.yml`
    - Environment: `pypi`
 
-2. 推送版本标签触发发布：
+2. 推送版本标签触发发布（版本自动从 tag 推导）：
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 3. GitHub Actions 会自动完成：

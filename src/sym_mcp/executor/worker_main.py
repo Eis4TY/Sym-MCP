@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import os
 from multiprocessing.connection import Connection
 from typing import Any
@@ -60,15 +59,7 @@ def _apply_resource_limits(memory_limit_mb: int, cpu_limit_sec: float) -> None:
         except (OSError, ValueError):
             pass
 
-    cpu_soft = max(1, math.ceil(cpu_limit_sec))
-    cpu_hard = cpu_soft + 1
-    try:
-        resource.setrlimit(resource.RLIMIT_CPU, (cpu_soft, cpu_hard))
-    except (OSError, ValueError):
-        pass
-
     try:
         os.nice(5)
     except OSError:
         pass
-

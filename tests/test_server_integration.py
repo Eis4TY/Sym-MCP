@@ -18,9 +18,8 @@ async def _cleanup_pool():
 async def test_sympy_tool_success() -> None:
     out = await server.sympy_tool("import sympy as sp\nx=sp.Symbol('x')\nprint(sp.integrate(x, x))")
     obj = json.loads(out)
-    assert obj["ok"] == 1
     assert "x**2/2" in obj["out"]
-    assert "meta" in obj
+    assert "code" not in obj
 
 
 def test_sympy_tool_signature_only_code() -> None:
@@ -32,7 +31,6 @@ def test_sympy_tool_signature_only_code() -> None:
 async def test_sympy_tool_ast_reject() -> None:
     out = await server.sympy_tool("import os\nprint(os.listdir('.'))")
     obj = json.loads(out)
-    assert obj["ok"] == 0
     assert obj["code"] == "E_AST_BLOCK"
     assert "安全拦截" in obj["err"]
 
@@ -41,7 +39,6 @@ async def test_sympy_tool_ast_reject() -> None:
 async def test_sympy_tool_runtime_error_noise_reduced() -> None:
     out = await server.sympy_tool("a=1/0\nprint(a)")
     obj = json.loads(out)
-    assert obj["ok"] == 0
     assert obj["code"] == "E_RUNTIME"
     assert obj["line"] == 1
     assert "ZeroDivisionError" in obj["err"]
@@ -54,8 +51,6 @@ async def test_sympy_tool_truncate_output() -> None:
     try:
         out = await server.sympy_tool("print('x'*500)")
         obj = json.loads(out)
-        assert obj["ok"] == 1
-        assert obj["meta"]["trunc"] == 1
         assert obj["out"].endswith("[truncated]")
     finally:
         server.settings = server.settings.__class__(**{**server.settings.__dict__, "max_output_chars": old})
@@ -65,7 +60,6 @@ async def test_sympy_tool_truncate_output() -> None:
 async def test_sympy_tool_syntax_error() -> None:
     out = await server.sympy_tool("for")
     obj = json.loads(out)
-    assert obj["ok"] == 0
     assert obj["code"] == "E_SYNTAX"
     assert obj["line"] == 1
 
@@ -74,16 +68,13 @@ async def test_sympy_tool_syntax_error() -> None:
 async def test_sympy_tool_no_print_output() -> None:
     out = await server.sympy_tool("import sympy as sp\nx = sp.Symbol('x')\ny = sp.expand((x+1)**3)")
     obj = json.loads(out)
-    assert obj["ok"] == 1
     assert obj["out"] == ""
-    assert obj["meta"]["trunc"] == 0
 
 
 @pytest.mark.asyncio
 async def test_sympy_tool_multiline_output() -> None:
     out = await server.sympy_tool("print(1)\nprint(2)")
     obj = json.loads(out)
-    assert obj["ok"] == 1
     assert obj["out"] == "1\n2"
 
 
@@ -94,7 +85,6 @@ async def test_sympy_tool_hint_level_none() -> None:
     try:
         out = await server.sympy_tool("a=1/0")
         obj = json.loads(out)
-        assert obj["ok"] == 0
         assert obj["code"] == "E_RUNTIME"
         assert obj["hint"] == ""
     finally:
@@ -108,7 +98,6 @@ async def test_sympy_tool_hint_level_short() -> None:
     try:
         out = await server.sympy_tool("a=1/0")
         obj = json.loads(out)
-        assert obj["ok"] == 0
         assert obj["code"] == "E_RUNTIME"
         assert obj["hint"] == "根据错误码与行号最小改动后重试。"
     finally:

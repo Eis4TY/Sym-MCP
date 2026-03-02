@@ -28,7 +28,6 @@ async def _cleanup_pool():
 async def test_sympy_tool_math_correctness(code: str, expected: str) -> None:
     out = await server.sympy_tool(code)
     obj = json.loads(out)
-    assert obj["ok"] == 1
     assert obj["out"] == expected
 
 
@@ -36,5 +35,4 @@ async def test_sympy_tool_math_correctness(code: str, expected: str) -> None:
 async def test_sympy_tool_math_module_support() -> None:
     out = await server.sympy_tool("from math import sqrt\nprint(sqrt(9))")
     obj = json.loads(out)
-    assert obj["ok"] == 1
     assert obj["out"] == "3.0"

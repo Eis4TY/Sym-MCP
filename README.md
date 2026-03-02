@@ -1,193 +1,49 @@
 # SymPy Sandbox MCP
 
-一个面向 Agent/LLM 的 SymPy 计算沙箱 MCP 服务。  
-目标是：在保证安全隔离的前提下，提供低延迟、低 token、可稳定重试的数学计算工具。
+English | [中文版](README.zh.md)
 
-## 特性
+A production-focused MCP service that lets agents/LLMs run SymPy safely and efficiently.
+It combines AST policy checks, runtime resource limits, and prewarmed workers to deliver low-noise, parse-friendly results.
 
-- 单工具 `sympy`，输入参数仅 `code`
-- 预热进程池，避免每次请求重复 `import sympy`
-- 双层安全防护：AST 拦截 + 运行时资源限制
-- 统一紧凑 JSON 输出，便于程序解析且节省 token
-- 错误码标准化，方便 Agent 自动纠错重试
+## Features
 
-## 适用场景
+- Single tool: `sympy` (input only requires `code`)
+- Prewarmed worker pool to avoid repeated `import sympy`
+- Two-layer safety: AST guard + runtime resource limits
+- Compact structured JSON output for low token overhead
+- Standardized error codes for reliable auto-retry workflows
 
-- 让 LLM 执行代数化简、求导、积分、方程求解、符号推导
-- 作为 MCP Tool 接入 Codex / Cursor / Claude Desktop / 自建 MCP Client
-- 需要“可控失败 + 低噪声错误信息”的自动化 Agent 工作流
+## Typical Use Cases
 
-## 快速开始
+- Symbolic algebra, differentiation, integration, equation solving
+- MCP tool integration for Codex / Cursor / Claude Desktop / custom MCP clients
+- Agent workflows that need controllable failures and clean error signals
 
-### 1) 环境要求
+## Recommended Integration (MCP client via stdio)
 
-- Python 3.11+
-- Linux / macOS（推荐 Linux 作为生产环境）
-
-### 2) 安装（清华源优先）
-
-```bash
-pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e .
-pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[dev]"
-```
-
-### 3) 启动服务（stdio）
-
-```bash
-python -m sym_mcp.server
-```
-
-### 4) 验证工具可用
-
-```bash
-fastmcp list --command 'python -m sym_mcp.server'
-```
-
-## 通过 PyPI 安装（推荐给最终用户）
-
-```bash
-pip install -U sym-mcp
-```
-
-安装后可直接运行：
-
-```bash
-sym-mcp
-```
-
-或临时运行（不落地安装，推荐给体验用户）：
-
-```bash
-uvx sym-mcp
-```
-
-## 工具接口（对外契约）
-
-### Tool 名称
-
-- `sympy`
-
-### 输入
-
-- `code: str`
-
-约定：
-- 代码必须使用 `print()` 输出最终结果
-- 如果不 `print`，`out` 可能为空字符串
-
-### 输出（固定为紧凑 JSON 字符串）
-
-成功：
-
-```json
-{"ok":1,"out":"x**2/2","meta":{"trunc":0,"ms":23}}
-```
-
-失败：
-
-```json
-{"ok":0,"code":"E_RUNTIME","line":3,"err":"ZeroDivisionError: division by zero","hint":"运行时错误。请根据行号检查变量类型、零除、未定义变量等问题后重试。","meta":{"trunc":0,"ms":31}}
-```
-
-字段定义：
-
-- `ok`: `1` 成功，`0` 失败
-- `out`: 成功输出文本（来自 stdout）
-- `code`: 错误码
-- `line`: 用户代码报错行号；无则 `null`
-- `err`: 精简错误信息（去除 traceback 噪声）
-- `hint`: 修复建议（按配置等级生成）
-- `meta.trunc`: 是否发生截断（`1/0`）
-- `meta.ms`: 执行耗时（毫秒）
-
-## 错误码说明
-
-- `E_AST_BLOCK`: AST 安全拦截（危险导入/调用/双下划线穿透）
-- `E_SYNTAX`: 语法错误
-- `E_TIMEOUT`: 超时（死循环或计算过慢）
-- `E_MEMORY`: 内存限制触发
-- `E_RUNTIME`: 一般运行时错误
-- `E_WORKER`: Worker 通讯/状态异常
-- `E_INTERNAL`: 服务内部异常
-
-## 给 LLM/Agent 的调用规范（建议直接放系统提示）
-
-1. 仅写数学代码，禁止文件、网络、系统调用。
-2. 仅导入 `sympy` / `math`。
-3. 最终答案必须 `print()`。
-4. 多个结果使用多行 `print()`。
-5. 收到失败结果时，只修改 `line` 附近最小范围代码并重试。
-6. `E_TIMEOUT` 先缩小规模再算；`E_MEMORY` 先减小对象维度；`E_AST_BLOCK` 删除不安全语句。
-
-推荐模板：
-
-```python
-import sympy as sp
-x = sp.Symbol("x")
-expr = (x + 1)**5
-print(sp.expand(expr))
-```
-
-## 安全模型
-
-### 执行前（AST 白名单）
-
-- 仅允许 `sympy` / `math` 导入
-- 禁止 `eval/exec/open/__import__` 等危险能力
-- 禁止双下划线属性穿透（如 `__class__`）
-
-### 执行中（OS 资源限制）
-
-- 子进程 CPU 时间限制 + 超时强杀
-- 子进程内存限制（`setrlimit`）
-- Worker 异常自动重建，不影响主服务
-
-## 架构总览
-
-- `src/sym_mcp/server.py`: MCP 入口与工具注册
-- `src/sym_mcp/security/ast_guard.py`: AST 安全校验
-- `src/sym_mcp/executor/worker_main.py`: Worker 进程执行循环
-- `src/sym_mcp/executor/pool.py`: 异步预热进程池
-- `src/sym_mcp/executor/sandbox.py`: 受限执行环境与输出捕获
-- `src/sym_mcp/errors/parser.py`: 错误降噪与错误码映射
-- `src/sym_mcp/config.py`: 运行配置
-
-## 配置项（环境变量）
-
-- `SYMMCP_POOL_SIZE`：进程池大小，默认 `10`
-- `SYMMCP_EXEC_TIMEOUT_SEC`：单次执行超时秒数，默认 `3`
-- `SYMMCP_MEMORY_LIMIT_MB`：单 worker 内存上限 MB，默认 `150`
-- `SYMMCP_QUEUE_WAIT_SEC`：队列等待超时秒数，默认 `2`
-- `SYMMCP_LOG_LEVEL`：日志级别，默认 `INFO`
-- `SYMMCP_MAX_OUTPUT_CHARS`：输出截断阈值，默认 `1200`
-- `SYMMCP_HINT_LEVEL`：提示等级（`none/short/medium`），默认 `medium`
-
-## 本地开发
-
-### 运行测试
-
-```bash
-PYTHONPATH=src pytest -q
-```
-
-### 基准压测
-
-```bash
-PYTHONPATH=src python scripts/benchmark.py --concurrency 100 --total 500
-```
-
-## MCP 客户端接入示例（stdio）
-
-示例命令：
+Call example:
 
 ```bash
 fastmcp call \
   --command 'python -m sym_mcp.server' \
   --target sympy \
-  --input-json '{"code":"import sympy as sp\nx=sp.Symbol(\"x\")\nprint(sp.factor(x**2-1))"}'
+  --input-json '{"code":"import sympy as sp\\nx=sp.Symbol(\"x\")\\nprint(sp.factor(x**2-1))"}'
 ```
 
-示例配置（安装为命令 `sym-mcp` 后）：
+Client config (`python -m`, recommended):
+
+```json
+{
+  "mcpServers": {
+    "sympy-sandbox": {
+      "command": "python",
+      "args": ["-m", "sym_mcp.server"]
+    }
+  }
+}
+```
+
+Client config (installed as `sym-mcp`):
 
 ```json
 {
@@ -200,7 +56,7 @@ fastmcp call \
 }
 ```
 
-示例配置（使用 `uvx`）：
+Client config (`uvx`):
 
 ```json
 {
@@ -213,35 +69,174 @@ fastmcp call \
 }
 ```
 
-## 常见问题
+## Quick Start
 
-### 1) 为什么结果为空？
+### 1) Requirements
 
-通常是代码未 `print` 最终结果。请显式 `print(...)`。
+- Python 3.11+
+- Linux / macOS (Linux recommended for production)
 
-### 2) 为什么返回 JSON 字符串而不是纯文本？
+### 2) Install (Tsinghua mirror first)
 
-为便于 Agent 稳定解析并减少 token，返回固定结构化紧凑 JSON。
+```bash
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e .
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[dev]"
+```
 
-### 3) macOS 下内存限制有时不稳定？
+### 3) Run server (stdio)
 
-`setrlimit` 在不同系统语义不同。生产建议优先 Linux。
+```bash
+python -m sym_mcp.server
+```
 
-### 4) 可以支持 HTTP/SSE 吗？
+### 4) Verify tool
 
-当前主交付是 `stdio`。后续可按 FastMCP 方式扩展 HTTP/SSE 传输层。
+```bash
+fastmcp list --command 'python -m sym_mcp.server'
+```
 
-## 已知边界
+## Tool Contract
 
-- 当前为“受限 Python 执行”，不是内核虚拟化级别隔离
-- 内存限制依赖 OS 层实现，跨平台表现会有差异
-- 输出会按阈值截断，请调用方检查 `meta.trunc`
+### Tool name
 
-## 贡献建议
+- `sympy`
 
-- 提交 PR 前先运行 `PYTHONPATH=src pytest -q`
-- 新增能力时请同步更新：
-  - 错误码文档
-  - README 示例
-  - 对应单元测试 / 集成测试
-- 发布流程见 [PUBLISHING.md](./PUBLISHING.md)
+### Input
+
+- `code: str`
+
+Notes:
+- You must `print()` final outputs.
+- If nothing is printed, `out` may be empty.
+
+### Output (always compact JSON string)
+
+Success:
+
+```json
+{"out":"x**2/2"}
+```
+
+Failure:
+
+```json
+{"code":"E_RUNTIME","line":3,"err":"ZeroDivisionError: division by zero","hint":"Runtime error. Check variable types, division-by-zero, or undefined names near the reported line."}
+```
+
+Field definitions:
+
+- `out`: stdout text on success
+- `code`: error code
+- `line`: user code error line, or `null`
+- `err`: compact error message (traceback noise removed)
+- `hint`: fix hint (based on configured hint level)
+- If `out` / `err` / `hint` is too long, it will be truncated with `...[truncated]`
+
+## Error Codes
+
+- `E_AST_BLOCK`: blocked by AST safety policy
+- `E_SYNTAX`: syntax error
+- `E_TIMEOUT`: timeout
+- `E_MEMORY`: memory limit triggered
+- `E_RUNTIME`: general runtime error
+- `E_WORKER`: worker communication/state failure
+- `E_INTERNAL`: internal server error
+
+## Recommended Agent Prompt Rules
+
+1. Use math-only Python code.
+2. Only import `sympy` or `math`.
+3. Always `print()` final answers.
+4. For multiple outputs, use multiple `print()` lines.
+5. On failure, patch minimally near `line` and retry.
+6. For `E_TIMEOUT`, reduce scale first; for `E_MEMORY`, reduce object size/dimension; for `E_AST_BLOCK`, remove unsafe statements.
+
+Example:
+
+```python
+import sympy as sp
+x = sp.Symbol("x")
+expr = (x + 1)**5
+print(sp.expand(expr))
+```
+
+## Security Model
+
+### Before execution (AST policy)
+
+- Only `sympy` / `math` imports are allowed
+- Dangerous capabilities are blocked (`eval`, `exec`, `open`, `__import__`, etc.)
+- Dunder attribute traversal is blocked (e.g. `__class__`)
+
+### During execution (OS resource limits)
+
+- Per-task CPU time limit + timeout kill
+- Per-worker memory limit via `setrlimit`
+- Worker auto-rebuild on failure to keep server healthy
+
+## Architecture
+
+- `src/sym_mcp/server.py`: MCP entrypoint and tool registration
+- `src/sym_mcp/security/ast_guard.py`: AST validation
+- `src/sym_mcp/executor/worker_main.py`: worker loop
+- `src/sym_mcp/executor/pool.py`: async prewarmed process pool
+- `src/sym_mcp/executor/sandbox.py`: restricted execution and stdout capture
+- `src/sym_mcp/errors/parser.py`: error normalization and code mapping
+- `src/sym_mcp/config.py`: runtime configuration
+
+## Configuration (Environment Variables)
+
+- `SYMMCP_POOL_SIZE`: worker pool size, default `10`
+- `SYMMCP_EXEC_TIMEOUT_SEC`: per execution timeout (sec), default `3`
+- `SYMMCP_MEMORY_LIMIT_MB`: memory cap per worker (MB), default `150`
+- `SYMMCP_QUEUE_WAIT_SEC`: queue wait timeout (sec), default `2`
+- `SYMMCP_LOG_LEVEL`: log level, default `INFO`
+- `SYMMCP_MAX_OUTPUT_CHARS`: output truncation threshold, default `1200`
+- `SYMMCP_HINT_LEVEL`: hint level (`none/short/medium`), default `medium`
+
+## FAQ
+
+### Why is `out` empty?
+
+Most likely the code does not `print()` the final result.
+
+### Why return compact JSON string?
+
+It is easier for agents to parse reliably and reduces token cost.
+
+### Is memory limiting always stable on macOS?
+
+`setrlimit` behavior differs by OS. Linux is preferred for production.
+
+### Does it support HTTP/SSE?
+
+Current primary delivery is `stdio`. HTTP/SSE can be added later via FastMCP transport extensions.
+
+## Known Limits
+
+- This is restricted Python execution, not VM/container-grade isolation
+- Memory limit behavior is OS-dependent
+- Output is truncated at threshold, with `...[truncated]` suffix
+
+## Development
+
+### Run tests
+
+```bash
+PYTHONPATH=src pytest -q
+```
+
+### Benchmark
+
+```bash
+PYTHONPATH=src python scripts/benchmark.py --concurrency 100 --total 500
+```
+
+## Contributing
+
+- Run `PYTHONPATH=src pytest -q` before submitting PRs
+- When adding new capabilities, update:
+  - error code docs
+  - README examples
+  - related unit/integration tests
+- Publishing process: [PUBLISHING.md](./PUBLISHING.md)
