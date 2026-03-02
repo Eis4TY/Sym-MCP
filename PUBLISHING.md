@@ -85,3 +85,7 @@ git push origin v0.1.1
    - 构建
    - `twine check`
    - OIDC 发布到 PyPI
+
+注意：
+- `workflow_dispatch` 可用于手动触发构建检查，但不会发布到 PyPI。
+- 只有 `refs/tags/v*`（例如 `v0.1.2`）才会执行发布步骤。
