@@ -1,0 +1,2 @@
+"""sym_mcp package."""
+

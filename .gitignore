@@ -1,0 +1,58 @@
+# =========================
+# Python cache / bytecode
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================
+# Build / packaging outputs
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+
+# =========================
+# Test / coverage / typecheck caches
+# =========================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.pyre/
+.ruff_cache/
+.hypothesis/
+.tox/
+.nox/
+
+# =========================
+# Virtual environments
+# =========================
+.venv/
+venv/
+env/
+
+# =========================
+# Local env / secrets
+# =========================
+.env
+.env.*
+*.local
+
+# =========================
+# Editor / OS files
+# =========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# =========================
+# Project-specific local docs (non-core)
+# =========================
+PRD.txt
+TEST_PLAN.md

@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sym-mcp"
+version = "0.1.0"
+description = "SymPy sandbox MCP server based on FastMCP"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+keywords = ["mcp", "sympy", "sandbox", "agent", "llm", "math"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+  "fastmcp>=3.0.0",
+  "sympy>=1.13.0",
+  "pydantic>=2.8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/tyy/Sym-mcp"
+Repository = "https://github.com/tyy/Sym-mcp"
+Issues = "https://github.com/tyy/Sym-mcp/issues"
+
+[project.scripts]
+sym-mcp = "sym_mcp.server:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
