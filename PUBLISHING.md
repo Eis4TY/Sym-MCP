@@ -57,3 +57,29 @@ sym-mcp
 fastmcp list --command "sym-mcp"
 fastmcp call --command "sym-mcp" --target sympy --input-json '{"code":"import sympy as sp\nx=sp.Symbol(\"x\")\nprint(sp.factor(x**2-1))"}'
 ```
+
+## 使用 GitHub Trusted Publisher（推荐）
+
+仓库已包含工作流：
+
+- `.github/workflows/pypi-publish.yml`
+
+发布方式：
+
+1. 在 PyPI 项目中创建 Trusted Publisher，填写：
+   - Owner: `Eis4TY`
+   - Repository: `Sym-MCP`
+   - Workflow: `pypi-publish.yml`
+   - Environment: `pypi`
+
+2. 推送版本标签触发发布：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+3. GitHub Actions 会自动完成：
+   - 构建
+   - `twine check`
+   - OIDC 发布到 PyPI

@@ -26,9 +26,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/tyy/Sym-mcp"
-Repository = "https://github.com/tyy/Sym-mcp"
-Issues = "https://github.com/tyy/Sym-mcp/issues"
+Homepage = "https://github.com/Eis4TY/Sym-MCP"
+Repository = "https://github.com/Eis4TY/Sym-MCP"
+Issues = "https://github.com/Eis4TY/Sym-MCP/issues"
 
 [project.scripts]
 sym-mcp = "sym_mcp.server:main"
